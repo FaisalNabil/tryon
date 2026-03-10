@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# ML models (large binaries)
+ml/*/models/*.onnx
+ml/*/models/*.pkl
+ml/*/models/*.joblib
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+api/prisma/migrations/*/migration_lock.toml
+
+# Logs
+*.log
+npm-debug.log*
+
+# Claude
+.claude/

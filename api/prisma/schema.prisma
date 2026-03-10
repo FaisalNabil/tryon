@@ -1,0 +1,152 @@
+// prisma/schema.prisma
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Shop ────────────────────────────────────────────────────────────
+model Shop {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  shopName     String
+  websiteUrl   String
+
+  // API key used by widget to authenticate
+  apiKey       String   @unique @default(cuid())
+
+  // Widget appearance settings (stored as JSON)
+  widgetSettings Json   @default("{}")
+
+  plan         Plan     @default(TRIAL)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  frames       Frame[]
+  subscription Subscription?
+  sessions     AnalyticsSession[]
+  events       AnalyticsEvent[]
+}
+
+// ─── Frame ───────────────────────────────────────────────────────────
+model Frame {
+  id          String   @id @default(cuid())
+  shopId      String
+  name        String
+  imageUrl    String              // CDN URL of transparent PNG
+  productUrl  String?             // match to specific product page URL
+  style       FrameStyle?         // for face shape recommendations
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  events      AnalyticsEvent[]
+}
+
+// ─── Subscription ────────────────────────────────────────────────────
+model Subscription {
+  id                 String   @id @default(cuid())
+  shopId             String   @unique
+  stripeSubId        String   @unique
+  stripeCustomerId   String
+  plan               Plan
+  status             SubStatus
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  trialEndsAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  shop               Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+// ─── Analytics Session ───────────────────────────────────────────────
+// One row per widget open — tracks usage against plan limits
+model AnalyticsSession {
+  id          String    @id @default(cuid())
+  shopId      String
+  sessionId   String    @unique // client-generated anonymous ID
+  pageUrl     String
+  faceShape   String?            // detected face shape class
+  faceRatios  Json?              // anonymous landmark ratios for ML training
+  createdAt   DateTime  @default(now())
+
+  shop        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  events      AnalyticsEvent[]
+}
+
+// ─── Analytics Event ─────────────────────────────────────────────────
+// Individual interactions within a session
+model AnalyticsEvent {
+  id          String    @id @default(cuid())
+  shopId      String
+  sessionId   String?
+  frameId     String?
+  eventType   EventType
+  pageUrl     String
+  metadata    Json?              // extra data (offsets, etc.)
+  createdAt   DateTime  @default(now())
+
+  shop        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  session     AnalyticsSession? @relation(fields: [sessionId], references: [sessionId])
+  frame       Frame?    @relation(fields: [frameId], references: [id])
+
+  @@index([shopId, createdAt])
+  @@index([shopId, eventType])
+}
+
+// ─── ML Model Versions ───────────────────────────────────────────────
+// Track trained model history — never overwrite
+model ModelVersion {
+  id          String   @id @default(cuid())
+  modelType   String   // "fit_scorer" | "face_shape"
+  version     Int
+  filePath    String   // path to ONNX file in storage
+  accuracy    Float?
+  trainedOn   Int      // number of samples used
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────
+enum Plan {
+  TRIAL    // 14 days, 5 frames, 100 try-ons
+  STARTER  // $19/mo, 20 frames, 500 try-ons
+  GROWTH   // $39/mo, 100 frames, 5000 try-ons
+  PRO      // $79/mo, unlimited
+}
+
+enum SubStatus {
+  trialing
+  active
+  past_due
+  cancelled
+  incomplete
+}
+
+enum FrameStyle {
+  rectangular
+  round
+  cat_eye
+  aviator
+  square
+  geometric
+  other
+}
+
+enum EventType {
+  widget_open
+  frame_tried
+  frame_adjusted
+  share_clicked
+  checkout_click
+  face_ratios
+}

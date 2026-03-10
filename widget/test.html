@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TryOn Widget Test Page</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f8f9fa; }
+
+    header {
+      background: white;
+      border-bottom: 1px solid #eee;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 20px; font-weight: 700; }
+    header p  { font-size: 13px; color: #888; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 32px; }
+
+    .setup-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+    .setup-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+
+    .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    input[type="text"] {
+      flex: 1;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      outline: none;
+    }
+    input[type="text"]:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #4f46e5; }
+
+    .hint { font-size: 12px; color: #9ca3af; }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .product-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .product-img {
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 64px;
+    }
+    .product-info { padding: 16px; }
+    .product-name  { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+    .product-price { color: #374151; font-size: 14px; margin-bottom: 12px; }
+    .add-btn {
+      width: 100%;
+      background: #111;
+      padding: 10px;
+      font-size: 13px;
+    }
+
+    .status-bar {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #166534;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .status-bar.visible { display: block; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span style="font-size:28px">👓</span>
+    <div>
+      <h1>Sample Eyewear Store</h1>
+      <p>TryOn Widget test page</p>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Setup panel -->
+    <div class="setup-card">
+      <h2>🔧 Widget Setup</h2>
+      <div class="input-row">
+        <input type="text" id="api-key-input" placeholder="Paste your API key here (from dashboard → Embed page)" />
+        <button onclick="loadWidget()">Load Widget</button>
+      </div>
+      <p class="hint">
+        Get your API key from the dashboard → Embed page. Or use
+        <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">test_key_dev</code>
+        if running locally with the API in dev mode.
+      </p>
+
+      <div id="status" class="status-bar"></div>
+    </div>
+
+    <!-- Fake product grid -->
+    <div class="product-grid">
+      <div class="product-card">
+        <div class="product-img">🕶️</div>
+        <div class="product-info">
+          <div class="product-name">Aviator Classic</div>
+          <div class="product-price">$129.00</div>
+          <button class="add-btn">Add to cart</button>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="product-img">👓</div>
+        <div class="product-info">
+          <div class="product-name">Round Tortoise</div>
+          <div class="product-price">$89.00</div>
+          <button class="add-btn">Add to cart</button>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="product-img">🥽</div>
+        <div class="product-info">
+          <div class="product-name">Cat Eye Luxe</div>
+          <div class="product-price">$149.00</div>
+          <button class="add-btn">Add to cart</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Save last used key
+    const saved = localStorage.getItem('tryon_test_key')
+    if (saved) document.getElementById('api-key-input').value = saved
+
+    function loadWidget() {
+      const key = document.getElementById('api-key-input').value.trim()
+      if (!key) {
+        alert('Enter an API key first')
+        return
+      }
+
+      localStorage.setItem('tryon_test_key', key)
+
+      // Remove any existing widget
+      const existing = document.getElementById('tryon-widget-host')
+      if (existing) existing.remove()
+
+      const existingScript = document.querySelector('script[data-tryon]')
+      if (existingScript) existingScript.remove()
+
+      // Load the widget script
+      const script = document.createElement('script')
+      script.src = 'http://localhost:5173/src/index.js'   // dev server
+      // For production: script.src = 'https://cdn.yourdomain.com/tryon.js'
+      script.setAttribute('data-key', key)
+      script.setAttribute('data-tryon', 'true')
+      script.type = 'module'
+      document.head.appendChild(script)
+
+      const status = document.getElementById('status')
+      status.textContent = `✓ Widget loading with key: ${key.slice(0, 8)}...`
+      status.classList.add('visible')
+
+      console.log('[Test] Widget loaded. Open DevTools to debug.')
+      console.log('[Test] Enable debug mode: window.__TRYON_DEBUG__ = true')
+    }
+
+    // Auto-load if key was saved
+    if (saved) {
+      setTimeout(loadWidget, 500)
+    }
+  </script>
+
+</body>
+</html>
