@@ -8,6 +8,7 @@
 
 import { validateAndFetchConfig } from './bootstrap.js'
 import { mountButton } from './ui.js'
+import { initAnalytics } from './analytics.js'
 
 ;(async () => {
   try {
@@ -30,6 +31,15 @@ import { mountButton } from './ui.js'
     // Validate key and fetch shop configuration
     const config = await validateAndFetchConfig(apiKey)
     if (!config) return
+
+    // Flatten settings into top-level config so ui.js can read
+    // config.buttonColor etc. directly (API returns nested settings object)
+    if (config.settings) {
+      Object.assign(config, config.settings)
+    }
+
+    // Start analytics batching
+    initAnalytics(config)
 
     // Mount the floating try-on button
     mountButton(config)

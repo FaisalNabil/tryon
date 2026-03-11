@@ -9,8 +9,9 @@
  * This ensures the widget looks correct on ANY website.
  */
 
-import { startCamera, stopCamera } from './camera.js'
+import { startCamera, stopCamera, setActiveFrame } from './camera.js'
 import { trackEvent } from './analytics.js'
+import { preloadFrameImages } from './overlay.js'
 
 let shadowRoot = null
 let config = null
@@ -125,8 +126,9 @@ async function openModal() {
   modal.classList.add('open')
   document.body.style.overflow = 'hidden' // prevent background scroll
 
-  // Populate frames list
+  // Populate frames list and preload frame images for instant switching
   populateFrames()
+  preloadFrameImages(config.frames || [])
 
   // Start camera + face detection
   try {
@@ -190,7 +192,7 @@ function selectFrame(frame, btn) {
   btn.classList.add('active')
 
   // Tell camera module which frame to overlay
-  import('./camera.js').then(({ setActiveFrame }) => setActiveFrame(frame))
+  setActiveFrame(frame)
 
   trackEvent('frame_tried', { frameId: frame.id })
 }
