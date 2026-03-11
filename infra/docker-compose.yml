@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,23 +5,43 @@ services:
     ports:
       - '5433:5432'
     environment:
-      POSTGRES_USER: tryon
-      POSTGRES_PASSWORD: tryon
-      POSTGRES_DB: tryon
+      POSTGRES_USER: ${POSTGRES_USER:-tryon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tryon}
+      POSTGRES_DB: ${POSTGRES_DB:-tryon}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tryon']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
       - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rembg:
     build: ../ml/rembg-service
     restart: unless-stopped
     ports:
       - '5000:5000'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
 volumes:
   pgdata:
