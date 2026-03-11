@@ -33,7 +33,7 @@ router.get('/config', requireApiKey, async (req, res, next) => {
       where: { id: shopId },
       select: {
         id: true,
-        name: true,
+        shopName: true,
         plan: true,
         widgetSettings: true,
       },
@@ -56,7 +56,7 @@ router.get('/config', requireApiKey, async (req, res, next) => {
 
     const config = {
       shopId: shop.id,
-      shopName: shop.name,
+      shopName: shop.shopName,
       frames,
       settings: shop.widgetSettings || {},
     }

@@ -43,7 +43,7 @@ router.post('/upload', upload.single('image'), async (req, res, next) => {
       data: {
         shopId: req.shopId,
         name: name || req.file.originalname.replace(/\.\w+$/, ''),
-        style: style || 'OTHER',
+        style: style || 'other',
         imageUrl,
       },
     })

@@ -36,7 +36,7 @@ router.post('/register', async (req, res, next) => {
       data: {
         email,
         passwordHash,
-        name: shopName,
+        shopName,
         apiKey,
       },
     })
@@ -49,7 +49,7 @@ router.post('/register', async (req, res, next) => {
 
     res.status(201).json({
       token,
-      shop: { id: shop.id, email: shop.email, name: shop.name, apiKey: shop.apiKey },
+      shop: { id: shop.id, email: shop.email, shopName: shop.shopName, apiKey: shop.apiKey },
     })
   } catch (err) { next(err) }
 })
@@ -81,7 +81,7 @@ router.post('/login', async (req, res, next) => {
 
     res.json({
       token,
-      shop: { id: shop.id, email: shop.email, name: shop.name },
+      shop: { id: shop.id, email: shop.email, shopName: shop.shopName },
     })
   } catch (err) { next(err) }
 })

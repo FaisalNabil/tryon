@@ -16,7 +16,7 @@ model Shop {
   email        String   @unique
   passwordHash String
   shopName     String
-  websiteUrl   String
+  websiteUrl   String?
 
   // API key used by widget to authenticate
   apiKey       String   @unique @default(cuid())
