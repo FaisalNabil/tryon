@@ -50,6 +50,21 @@ router.post('/ingest', requireApiKey, async (req, res, next) => {
       })
     }
 
+    // ── Store face ratios on AnalyticsSession for ML training ────────
+    const faceRatiosEvents = valid.filter(e => e.eventType === 'face_ratios' && e.sessionId)
+    for (const evt of faceRatiosEvents) {
+      const { faceShape, widthToLength, jawToCheekbone, foreheadToJaw } = evt
+      if (faceShape) {
+        await prisma.analyticsSession.update({
+          where: { sessionId: evt.sessionId },
+          data: {
+            faceShape,
+            faceRatios: { widthToLength, jawToCheekbone, foreheadToJaw },
+          },
+        }).catch(() => {}) // ignore if session doesn't exist yet
+      }
+    }
+
     const records = valid.map(evt => ({
       shopId:    req.shopId,
       sessionId: evt.sessionId || null,

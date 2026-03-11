@@ -13,6 +13,7 @@
 
 import { loadFaceDetector, detectFace } from './face-detector.js'
 import { drawFrameOverlay } from './overlay.js'
+import { trackEvent } from './analytics.js'
 
 let videoEl = null
 let canvasEl = null
@@ -150,12 +151,18 @@ function renderLoop() {
       })
     }
 
-    // Report face shape once per session (for recommendations)
+    // Report face shape once per session (for recommendations + ML training)
     if (!faceShapeReported && onFaceShapeCallback) {
-      const shape = estimateFaceShapeFromLandmarks(landmarks)
-      if (shape) {
+      const result = estimateFaceShapeFromLandmarks(landmarks)
+      if (result) {
         faceShapeReported = true
-        onFaceShapeCallback(shape)
+        onFaceShapeCallback(result.shape)
+
+        // Send face ratios to API for ML training data collection
+        trackEvent('face_ratios', {
+          faceShape: result.shape,
+          ...result.ratios,
+        })
       }
     }
   } else {
@@ -201,15 +208,18 @@ function estimateFaceShapeFromLandmarks(landmarks) {
     const jawWidth    = Math.abs(rightJaw.x - leftJaw.x)
     const browWidth   = Math.abs(rightBrow.x - leftBrow.x)
 
-    const faceRatio   = faceWidth / faceLength
-    const jawRatio    = jawWidth / faceWidth
-    const browRatio   = browWidth / faceWidth
+    const widthToLength    = Math.round((faceWidth / faceLength) * 1000) / 1000
+    const jawToCheekbone   = Math.round((jawWidth / faceWidth) * 1000) / 1000
+    const foreheadToJaw    = Math.round((browWidth / faceWidth) * 1000) / 1000
 
-    if (faceRatio > 0.82) return 'round'
-    if (faceRatio < 0.65) return 'oblong'
-    if (browRatio > 0.85 && jawRatio < 0.75) return 'heart'
-    if (jawRatio > 0.85 && browRatio > 0.85) return 'square'
-    return 'oval' // most common default
+    let shape
+    if (widthToLength > 0.82) shape = 'round'
+    else if (widthToLength < 0.65) shape = 'oblong'
+    else if (foreheadToJaw > 0.85 && jawToCheekbone < 0.75) shape = 'heart'
+    else if (jawToCheekbone > 0.85 && foreheadToJaw > 0.85) shape = 'square'
+    else shape = 'oval' // most common default
+
+    return { shape, ratios: { widthToLength, jawToCheekbone, foreheadToJaw } }
   } catch {
     return null
   }

@@ -15,6 +15,7 @@ import frameRoutes    from './routes/frames.js'
 import widgetRoutes   from './routes/widget.js'
 import analyticsRoutes from './routes/analytics.js'
 import billingRoutes  from './routes/billing.js'
+import mlRoutes       from './routes/ml.js'
 
 import { errorHandler } from './middleware/errorHandler.js'
 
@@ -30,8 +31,9 @@ const app = express()
 // Security headers
 app.use(helmet())
 
-// CORS — allow all origins for widget API, restrict dashboard API
+// CORS — allow all origins for widget + ML APIs, restrict dashboard API
 app.use('/v1/widget', cors({ origin: '*' }))
+app.use('/v1/ml', cors({ origin: '*' }))
 app.use('/v1', cors({
   origin: process.env.DASHBOARD_URL || 'http://localhost:3001',
   credentials: true,
@@ -49,6 +51,7 @@ app.use('/v1/frames',    frameRoutes)
 app.use('/v1/widget',    widgetRoutes)
 app.use('/v1/analytics', analyticsRoutes)
 app.use('/v1/billing',   billingRoutes)
+app.use('/v1/ml',        mlRoutes)
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }))

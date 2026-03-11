@@ -53,29 +53,30 @@ def load_data():
     since = datetime.now() - timedelta(days=LOOKBACK_DAYS)
 
     # Load try-on sessions with face ratios
+    # NOTE: Prisma generates camelCase columns — use quoted identifiers
     sessions_q = """
         SELECT
-            s.session_id,
-            s.face_shape,
-            s.face_ratios,
-            s.created_at
+            s."sessionId"  AS session_id,
+            s."faceShape"  AS face_shape,
+            s."faceRatios" AS face_ratios,
+            s."createdAt"  AS created_at
         FROM "AnalyticsSession" s
-        WHERE s.created_at > %s
-          AND s.face_ratios IS NOT NULL
+        WHERE s."createdAt" > %s
+          AND s."faceRatios" IS NOT NULL
     """
 
     # Load events per session (for labels and frame features)
     events_q = """
         SELECT
-            e.session_id,
-            e.frame_id,
-            e.event_type,
-            e.metadata,
-            f.style
+            e."sessionId"  AS session_id,
+            e."frameId"    AS frame_id,
+            e."eventType"  AS event_type,
+            e."metadata"   AS metadata,
+            f."style"      AS style
         FROM "AnalyticsEvent" e
-        LEFT JOIN "Frame" f ON f.id = e.frame_id
-        WHERE e.created_at > %s
-          AND e.session_id IS NOT NULL
+        LEFT JOIN "Frame" f ON f.id = e."frameId"
+        WHERE e."createdAt" > %s
+          AND e."sessionId" IS NOT NULL
     """
 
     sessions_df = pd.read_sql(sessions_q, conn, params=(since,))
@@ -206,13 +207,34 @@ def train(df):
     return model, feature_cols
 
 
-# ─── 4. Save model ────────────────────────────────────────────────────
+# ─── 4. Save model (joblib + ONNX) ────────────────────────────────────
 def save_model(model, feature_cols):
     version = datetime.now().strftime('%Y%m%d_%H%M%S')
     model_path   = os.path.join(MODELS_DIR, f'fit_scorer_{version}.joblib')
+    onnx_path    = os.path.join(MODELS_DIR, f'fit_scorer_{version}.onnx')
     feature_path = os.path.join(MODELS_DIR, f'fit_scorer_{version}_features.json')
 
+    # Save scikit-learn model (for Python inference / retraining)
     joblib.dump(model, model_path)
+    print(f"  Saved joblib model: {model_path}")
+
+    # Export to ONNX (for Node.js inference via onnxruntime-node)
+    try:
+        from onnxmltools import convert_sklearn
+        from onnxmltools.convert.common.data_types import FloatTensorType
+
+        initial_type = [('features', FloatTensorType([None, len(feature_cols)]))]
+        onnx_model = convert_sklearn(model, initial_types=initial_type)
+
+        with open(onnx_path, 'wb') as f:
+            f.write(onnx_model.SerializeToString())
+
+        print(f"  Saved ONNX model: {onnx_path}")
+    except ImportError:
+        print("  ⚠️  onnxmltools not installed — skipping ONNX export")
+        print("     Install: pip install onnxmltools")
+    except Exception as e:
+        print(f"  ⚠️  ONNX export failed: {e}")
 
     with open(feature_path, 'w') as f:
         json.dump(feature_cols, f)
@@ -221,7 +243,6 @@ def save_model(model, feature_cols):
     with open(VERSION_FILE, 'w') as f:
         f.write(version)
 
-    print(f"  Saved model: {model_path}")
     return version
 
 

@@ -197,11 +197,72 @@ function selectFrame(frame, btn) {
   trackEvent('frame_tried', { frameId: frame.id })
 }
 
-function showRecommendation(shape) {
+async function showRecommendation(shape) {
   const el = shadowRoot.getElementById('tryon-recommendation')
   const text = shadowRoot.getElementById('tryon-rec-text')
-  text.textContent = `✨ Recommended for ${shape} face shape`
+  text.textContent = `Detected: ${shape} face shape`
   el.removeAttribute('hidden')
+
+  // Fetch fit scores for all frames from the ML endpoint
+  await fetchAndShowFitScores(shape)
+}
+
+/**
+ * Call the batch fit-score endpoint and add badges to frame cards.
+ */
+async function fetchAndShowFitScores(faceShape) {
+  if (!config?.frames?.length || !config._apiBase || !config._apiKey) return
+
+  // Collect styles from frames (fall back to 'other' if not set)
+  const frameStyles = config.frames.map(f => f.style || 'other')
+
+  try {
+    const res = await fetch(`${config._apiBase}/ml/fit-score-batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': config._apiKey,
+      },
+      body: JSON.stringify({ faceShape, frameStyles }),
+    })
+
+    if (!res.ok) return
+
+    const { scores } = await res.json()
+    if (!scores?.length) return
+
+    // Map style → score result
+    const scoreMap = {}
+    scores.forEach(s => { scoreMap[s.style] = s })
+
+    // Add badges to each frame button
+    config.frames.forEach((frame) => {
+      const style = frame.style || 'other'
+      const scoreData = scoreMap[style]
+      if (!scoreData) return
+
+      const btn = shadowRoot.querySelector(`.frame-btn[data-frame-id="${frame.id}"]`)
+      if (!btn) return
+
+      // Remove existing badge if any
+      const existing = btn.querySelector('.fit-badge')
+      if (existing) existing.remove()
+
+      const badge = document.createElement('span')
+      badge.className = `fit-badge fit-${getBadgeClass(scoreData.score)}`
+      badge.textContent = scoreData.label
+      btn.appendChild(badge)
+    })
+  } catch (err) {
+    console.warn('[TryOn] Fit scoring unavailable:', err.message)
+  }
+}
+
+function getBadgeClass(score) {
+  if (score >= 85) return 'great'
+  if (score >= 70) return 'good'
+  if (score >= 55) return 'decent'
+  return 'low'
 }
 
 function showPermissionError() {
@@ -393,6 +454,22 @@ function getStyles(cfg) {
       text-overflow: ellipsis;
       max-width: 70px;
     }
+
+    /* ── Fit Score Badges ── */
+    .fit-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-top: 2px;
+    }
+    .fit-great { background: #dcfce7; color: #166534; }
+    .fit-good  { background: #dbeafe; color: #1e40af; }
+    .fit-decent { background: #fef9c3; color: #854d0e; }
+    .fit-low   { background: #f3f4f6; color: #6b7280; }
 
     /* ── Recommendation ── */
     #tryon-recommendation {
