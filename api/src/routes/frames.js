@@ -2,18 +2,30 @@
  * routes/frames.js — Frame CRUD
  *
  * Manage eyeglass frame images for a shop.
- * Upload processing (R2, rembg) is wired in Milestone 5.
+ * Upload pipeline: image → rembg (background removal) → R2 (CDN storage)
  */
 
 import { Router } from 'express'
+import { randomUUID } from 'crypto'
 import multer from 'multer'
-import { prisma } from '../server.js'
+import { prisma, redis } from '../server.js'
 import { requireAuth } from '../middleware/auth.js'
+import { removeBackground } from '../services/imageProcess.js'
+import { uploadImage, deleteImage } from '../services/storage.js'
 
 const router = Router()
 router.use(requireAuth)
 
-const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }) // 10MB
+// Use memory storage so req.file.buffer is available for the image pipeline
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+})
+
+// ─── Helper: invalidate widget config cache ──────────────────────────
+async function invalidateCache(shopId) {
+  await redis.del(`widget:config:${shopId}`)
+}
 
 // ─── GET / — List all frames for this shop ──────────────────────────
 router.get('/', async (req, res, next) => {
@@ -27,6 +39,7 @@ router.get('/', async (req, res, next) => {
 })
 
 // ─── POST /upload — Upload a new frame image ────────────────────────
+// Pipeline: receive image → remove background (rembg) → upload to R2 → save to DB
 router.post('/upload', upload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) {
@@ -35,10 +48,20 @@ router.post('/upload', upload.single('image'), async (req, res, next) => {
 
     const { name, style } = req.body
 
-    // TODO (Milestone 5): Process through rembg, upload to R2
-    // For now, store a placeholder URL
-    const imageUrl = `placeholder://${req.file.originalname}`
+    // Step 1: Remove background via rembg microservice
+    // Gracefully falls back to original image if rembg is unavailable
+    let processedBuffer = req.file.buffer
+    try {
+      processedBuffer = await removeBackground(req.file.buffer)
+    } catch (err) {
+      console.warn('[frames] rembg unavailable, using original image:', err.message)
+    }
 
+    // Step 2: Upload to Cloudflare R2
+    const key = `frames/${req.shopId}/${randomUUID()}.png`
+    const imageUrl = await uploadImage(processedBuffer, key, 'image/png')
+
+    // Step 3: Save frame record in database
     const frame = await prisma.frame.create({
       data: {
         shopId: req.shopId,
@@ -47,6 +70,9 @@ router.post('/upload', upload.single('image'), async (req, res, next) => {
         imageUrl,
       },
     })
+
+    // Step 4: Invalidate widget config cache (new frame available)
+    await invalidateCache(req.shopId)
 
     res.status(201).json(frame)
   } catch (err) { next(err) }
@@ -71,6 +97,10 @@ router.put('/:id', async (req, res, next) => {
     }
 
     const updated = await prisma.frame.findUnique({ where: { id: req.params.id } })
+
+    // Invalidate widget config cache (frame metadata changed)
+    await invalidateCache(req.shopId)
+
     res.json(updated)
   } catch (err) { next(err) }
 })
@@ -78,14 +108,41 @@ router.put('/:id', async (req, res, next) => {
 // ─── DELETE /:id — Delete a frame ───────────────────────────────────
 router.delete('/:id', async (req, res, next) => {
   try {
-    // TODO (Milestone 5): Also delete image from R2
-    const result = await prisma.frame.deleteMany({
+    // Fetch the frame first to get its R2 image URL
+    const frame = await prisma.frame.findFirst({
+      where: { id: req.params.id, shopId: req.shopId },
+      select: { imageUrl: true },
+    })
+
+    if (!frame) {
+      return res.status(404).json({ error: 'Frame not found' })
+    }
+
+    // Delete from R2 storage (non-blocking — DB deletion still happens if R2 fails)
+    if (frame.imageUrl && !frame.imageUrl.startsWith('placeholder://')) {
+      try {
+        // Extract the R2 key from the full URL
+        // URL format: https://.../{bucket}/{key} — key starts after bucket name
+        const url = new URL(frame.imageUrl)
+        const pathParts = url.pathname.split('/')
+        // Key is everything after the bucket name segment (e.g. "frames/shopId/uuid.png")
+        const bucketIdx = pathParts.findIndex(p => p === process.env.R2_BUCKET_NAME)
+        const key = bucketIdx >= 0
+          ? pathParts.slice(bucketIdx + 1).join('/')
+          : pathParts.slice(1).join('/') // fallback: use full path
+        await deleteImage(key)
+      } catch (err) {
+        console.warn('[frames] Failed to delete from R2:', err.message)
+      }
+    }
+
+    // Delete from database
+    await prisma.frame.deleteMany({
       where: { id: req.params.id, shopId: req.shopId },
     })
 
-    if (result.count === 0) {
-      return res.status(404).json({ error: 'Frame not found' })
-    }
+    // Invalidate widget config cache (frame removed)
+    await invalidateCache(req.shopId)
 
     res.json({ ok: true })
   } catch (err) { next(err) }
