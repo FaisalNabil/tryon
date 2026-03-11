@@ -19,6 +19,7 @@ const VALID_EVENT_TYPES = [
 
 // ─── POST /analytics/ingest ─────────────────────────────────────────
 // Receives batched events from the widget (authenticated via API key).
+// Auto-creates AnalyticsSession if one doesn't exist for the sessionId.
 router.post('/ingest', requireApiKey, async (req, res, next) => {
   try {
     const { events } = req.body
@@ -28,16 +29,35 @@ router.post('/ingest', requireApiKey, async (req, res, next) => {
     }
 
     // Limit batch size and filter invalid event types
-    const records = events.slice(0, 100)
+    const valid = events.slice(0, 100)
       .filter(evt => VALID_EVENT_TYPES.includes(evt.eventType))
-      .map(evt => ({
-        shopId:    req.shopId,
-        sessionId: evt.sessionId || null,
-        frameId:   evt.frameId || null,
-        eventType: evt.eventType,
-        pageUrl:   evt.pageUrl || '',
-        metadata:  evt.metadata || null,
-      }))
+
+    if (valid.length === 0) {
+      return res.json({ ok: true, count: 0 })
+    }
+
+    // Ensure AnalyticsSession exists for each unique sessionId
+    const sessionIds = [...new Set(valid.map(e => e.sessionId).filter(Boolean))]
+    for (const sid of sessionIds) {
+      await prisma.analyticsSession.upsert({
+        where: { sessionId: sid },
+        create: {
+          shopId:    req.shopId,
+          sessionId: sid,
+          pageUrl:   valid.find(e => e.sessionId === sid)?.pageUrl || '',
+        },
+        update: {}, // no-op if already exists
+      })
+    }
+
+    const records = valid.map(evt => ({
+      shopId:    req.shopId,
+      sessionId: evt.sessionId || null,
+      frameId:   evt.frameId || null,
+      eventType: evt.eventType,
+      pageUrl:   evt.pageUrl || '',
+      metadata:  evt.metadata || null,
+    }))
 
     await prisma.analyticsEvent.createMany({ data: records })
 
