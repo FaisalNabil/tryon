@@ -18,7 +18,7 @@ export default function FramesPage() {
 
   async function loadFrames() {
     try {
-      const { frames } = await framesApi.list()
+      const frames = await framesApi.list()
       setFrameList(frames)
     } catch (err) {
       setError(err.message)
@@ -62,7 +62,7 @@ export default function FramesPage() {
   async function handleToggle(frame) {
     try {
       const updated = await framesApi.update(frame.id, { isActive: !frame.isActive })
-      setFrameList(prev => prev.map(f => f.id === frame.id ? updated.frame : f))
+      setFrameList(prev => prev.map(f => f.id === frame.id ? updated : f))
     } catch (err) {
       setError(err.message)
     }
@@ -71,7 +71,7 @@ export default function FramesPage() {
   async function handleStyleChange(frame, style) {
     try {
       const updated = await framesApi.update(frame.id, { style })
-      setFrameList(prev => prev.map(f => f.id === frame.id ? updated.frame : f))
+      setFrameList(prev => prev.map(f => f.id === frame.id ? updated : f))
     } catch {}
   }
 

@@ -77,7 +77,7 @@ export default function SettingsPage() {
 
           <div>
             <label className="label">Website URL</label>
-            <input type="url" className="input" value={form.websiteUrl} onChange={set('websiteUrl')} required />
+            <input type="url" className="input" value={form.websiteUrl} onChange={set('websiteUrl')} />
             <p className="text-xs text-gray-400 mt-1">The widget API key only works on this domain.</p>
           </div>
         </div>

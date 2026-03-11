@@ -18,7 +18,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const data = await auth.login(email, password)
+      const data = await auth.login({ email, password })
       saveToken(data.token)
       router.push('/dashboard')
     } catch (err) {

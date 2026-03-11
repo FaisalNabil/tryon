@@ -3,6 +3,7 @@
 import './globals.css'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { clearToken } from '../lib/api'
 
 const NAV_ITEMS = [
   { href: '/dashboard',          label: 'Overview',  icon: '📊' },
@@ -65,7 +66,7 @@ function Sidebar() {
       <div className="mt-auto pt-6 border-t border-gray-200 absolute bottom-6 left-6 right-6">
         <button
           onClick={() => {
-            localStorage.removeItem('token')
+            clearToken()
             window.location.href = '/login'
           }}
           className="text-sm text-gray-500 hover:text-gray-700"

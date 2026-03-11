@@ -19,7 +19,7 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      const data = await auth.register(email, password, shopName)
+      const data = await auth.register({ email, password, shopName })
       saveToken(data.token)
       router.push('/dashboard')
     } catch (err) {

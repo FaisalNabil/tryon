@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { billing as billingApi } from '../../../lib/api'
 
@@ -33,6 +33,14 @@ const PLANS = [
 ]
 
 export default function BillingPage() {
+  return (
+    <Suspense fallback={<div className="text-gray-400 py-12">Loading...</div>}>
+      <BillingContent />
+    </Suspense>
+  )
+}
+
+function BillingContent() {
   const params = useSearchParams()
   const [sub,       setSub]       = useState(null)
   const [loading,   setLoading]   = useState(true)
