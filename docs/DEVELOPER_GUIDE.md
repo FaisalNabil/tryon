@@ -841,7 +841,46 @@ npx prisma generate
 
 ---
 
-## 14. Environment Variables Reference
+## 14. Running Tests
+
+The API has a full integration test suite with **40 tests** across 5 files, built with [Vitest](https://vitest.dev/).
+
+### Quick Start
+
+```bash
+cd api
+npm test            # Run all tests once
+npm run test:watch  # Re-run on file changes
+```
+
+### Prerequisites
+
+Tests run against a **real PostgreSQL database**, so make sure Docker infrastructure is running:
+
+```bash
+cd infra && docker compose up -d
+```
+
+### Test Files
+
+| File | Tests | What It Covers |
+|------|-------|----------------|
+| `tests/auth.test.js` | 11 | Register, login, JWT validation, Zod input errors |
+| `tests/frames.test.js` | 8 | Frame CRUD, file upload, tenant isolation |
+| `tests/widget.test.js` | 5 | Config endpoint, API key auth, active frame filtering |
+| `tests/analytics.test.js` | 8 | Batch event ingestion, summary aggregation, face ratios |
+| `tests/ml.test.js` | 8 | Fit scoring, batch scoring, dual auth (API key + JWT) |
+
+### How Tests Work
+
+- **`tests/setup.js`** starts the API on a random port, mocks R2 storage and rembg, and cleans the database between each test
+- External services (Cloudflare R2, rembg) are mocked — no cloud credentials needed
+- Each test creates its own shop via `createTestShop()` so tests are fully isolated
+- The server runs with `NODE_ENV=test` which skips `app.listen()` (the test harness manages the port)
+
+---
+
+## 15. Environment Variables Reference
 
 ### API (`api/.env`)
 
@@ -880,7 +919,7 @@ npx prisma generate
 
 ---
 
-## 15. Useful Commands Cheat Sheet
+## 16. Useful Commands Cheat Sheet
 
 ### Infrastructure
 ```bash
@@ -897,6 +936,8 @@ docker compose logs postgres # View database logs
 cd api
 npm run dev                  # Start API in development mode (auto-restart on changes)
 npm start                    # Start API in production mode
+npm test                     # Run all 40 integration tests (Vitest)
+npm run test:watch           # Re-run tests on file changes
 npx prisma studio            # Open visual database browser (http://localhost:5555)
 npx prisma migrate dev       # Apply database schema changes
 npx prisma generate          # Regenerate Prisma client after schema changes

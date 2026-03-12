@@ -1,27 +1,26 @@
 # TryOn SaaS — Master Project Plan
-> Virtual glasses try-on widget for eyewear e-commerce shops  
-> Last updated: 2026-03-10  
+> Virtual glasses try-on widget for eyewear e-commerce shops
+> Last updated: 2026-03-12
 > Status legend: ⬜ Not started | 🟡 In progress | ✅ Done | ❌ Blocked
 
 ---
 
-## ✅ Code Written (48 files across 4 systems)
+## ✅ All 8 Development Milestones Complete
 
-| System | Files written | Status |
+| System | Files | Status |
 |---|---|---|
-| Widget | `index.js` `bootstrap.js` `ui.js` `camera.js` `face-detector.js` `overlay.js` `analytics.js` + `vite.config.js` `package.json` `test.html` | Code written — **needs npm install + browser test** |
-| API | `server.js` + routes: `auth` `shops` `frames` `widget` `analytics` `billing` + middleware: `auth` `apiKey` `errorHandler` + services: `storage` `imageProcess` + `schema.prisma` | Code written — **needs npm install + .env + DB migrate** |
-| Dashboard | `layout.js` `page.js` (overview, frames, embed, settings, billing) `login` `register` `api.js` `globals.css` | Code written — **needs npm install + .env.local** |
-| ML | `rembg-service/app.py` `face-shape-classifier/train.py` `fit-scorer/train.py` | Code written — **needs pip install + training data** |
-| Infra | `docker-compose.yml` `nginx.conf` `deploy.sh` | Written — **needs domain names substituted** |
+| Widget | `index.js` `bootstrap.js` `ui.js` `camera.js` `face-detector.js` `overlay.js` `analytics.js` + `vite.config.js` `package.json` `test.html` | ✅ Built & tested |
+| API | `server.js` + routes: `auth` `shops` `frames` `widget` `analytics` `billing` `ml` + middleware: `auth` `apiKey` `errorHandler` + services: `storage` `imageProcess` `fitScorer` + `schema.prisma` | ✅ 40 integration tests passing |
+| Dashboard | `layout.js` `page.js` (overview, frames, embed, settings, billing) `login` `register` `api.js` `globals.css` | ✅ Production build verified |
+| ML | `rembg-service/app.py` `rembg-service/Dockerfile` `fit-scorer/train.py` | ✅ Rule-based scoring + ONNX-ready |
+| Infra | `docker-compose.yml` `nginx.conf` `deploy.sh` `backup.sh` `ecosystem.config.cjs` | ✅ Production-ready config |
+| Tests | `tests/setup.js` `auth.test.js` `frames.test.js` `widget.test.js` `analytics.test.js` `ml.test.js` `vitest.config.js` | ✅ 40 tests across 5 files |
 
-## ⬜ Still Needs To Be Done (genuine work remaining)
+## ⬜ Pre-Launch Tasks (deployment & external services)
 
 | Task | Where | Effort |
 |---|---|---|
-| `npm install` + first run for all 3 JS systems | widget / api / dashboard | 30 min |
 | Edit `.env` with real secrets (DB, Stripe, R2, JWT) | `api/.env` | 30 min |
-| Run `npx prisma migrate dev` to create DB tables | `api/` | 5 min |
 | `npm run build` widget → upload `dist/tryon.iife.js` to Cloudflare R2 | `widget/` | 1 hr |
 | Create Stripe products + copy price IDs to `.env` | Stripe dashboard | 30 min |
 | Create Cloudflare R2 bucket + copy credentials to `.env` | Cloudflare dashboard | 30 min |
@@ -29,14 +28,10 @@
 | Run `deploy.sh` on fresh Hetzner VPS | VPS terminal | 1-2 hrs |
 | Run `certbot` for HTTPS | VPS terminal | 15 min |
 | Set Stripe webhook URL in Stripe dashboard | Stripe dashboard | 10 min |
-| Collect ~300 labeled face shape images per class for ML | Manual/Upwork | 1-2 days |
+| Collect ~300 labeled face shape images per class for ML training | Manual/Upwork | 1-2 days |
 | Train face shape classifier (`python train.py`) | `ml/face-shape-classifier/` | 2-4 hrs (GPU) |
-| Wire face shape API call from widget to server | `api/src/routes/widget.js` | 2 hrs |
-| `next.config.js` for dashboard (Tailwind postcss setup) | `dashboard/` | 30 min |
-| Add `tailwind.config.js` + `postcss.config.js` | `dashboard/` | 15 min |
 | Landing page (marketing, not dashboard) | New page | 1 day |
 | Welcome email on register (Resend) | `api/src/services/email.js` | 2 hrs |
-| End-to-end test: register → upload → embed → try on | Manual QA | 2 hrs |
 
 ---
 

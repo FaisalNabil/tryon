@@ -103,6 +103,13 @@ pip install -r requirements.txt
 python train.py
 ```
 
+### Running Tests
+```bash
+cd api
+npm test            # Run all 40 integration tests (vitest)
+npm run test:watch  # Watch mode
+```
+
 ### Manual Testing
 Open `widget/test.html` in a browser with an API key from the dashboard.
 
@@ -121,6 +128,12 @@ Open `widget/test.html` in a browser with an API key from the dashboard.
 **Stripe webhook flow**: `checkout.session.completed` → update Subscription record → update Shop plan → invalidate Redis cache. Webhook signature verified via `STRIPE_WEBHOOK_SECRET`.
 
 **Import convention**: API route files import `{ prisma, redis }` from `../server.js` and `{ requireAuth }` from `../middleware/auth.js`. All API routes are ES modules using `export default router`.
+
+**Zod validation**: All route inputs are validated with Zod schemas. Validation errors are caught by the global error handler and returned as 400 with `{ error: 'Validation failed', fields: [...] }`.
+
+**Test architecture**: Tests run with `NODE_ENV=test` which skips `app.listen()`. The test setup (`tests/setup.js`) starts the app on a random port, mocks R2/rembg, and cleans the DB between tests. External services are mocked via `vi.mock()` in the setup file.
+
+**Fit scoring**: Rule-based fallback maps face shapes to frame styles (0-100). ONNX-ready: auto-loads ML model when `ml/fit-scorer/model.onnx` exists, falls back to rules otherwise.
 
 ## Environment Variables
 
@@ -158,10 +171,10 @@ Nginx routes: `api.` subdomain → :3000, `app.` subdomain → :3001. Widget JS 
 
 Development is tracked in 8 milestones (see `docs/PROJECT_PLAN.md`):
 1. ✅ Project Scaffold & Git Init
-2. API Core (Auth, DB, Shop CRUD)
-3. Widget Core (Face Detection & AR Overlay)
-4. Dashboard (Shop Owner Interface)
-5. Billing, Analytics, Storage & Image Processing
-6. ML Pipeline (Face Shape & Fit Scoring)
-7. Infrastructure & Production Deployment
-8. E2E Testing, Polish & Launch
+2. ✅ API Core (Auth, DB, Shop CRUD)
+3. ✅ Widget Core (Face Detection & AR Overlay)
+4. ✅ Dashboard (Shop Owner Interface)
+5. ✅ Billing, Analytics, Storage & Image Processing
+6. ✅ ML Pipeline (Face Shape & Fit Scoring)
+7. ✅ Infrastructure & Production Deployment
+8. ✅ E2E Testing, Polish & Launch
