@@ -59,12 +59,17 @@ app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }))
 // Global error handler (must be last)
 app.use(errorHandler)
 
-// ─── Start ───────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000
+// ─── Export app for testing ────────────────────────────────────────────
+export { app }
 
-app.listen(PORT, () => {
-  console.log(`[API] Running on http://localhost:${PORT}`)
-})
+// ─── Start (skip when imported by tests) ──────────────────────────────
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 3000
+
+  app.listen(PORT, () => {
+    console.log(`[API] Running on http://localhost:${PORT}`)
+  })
+}
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

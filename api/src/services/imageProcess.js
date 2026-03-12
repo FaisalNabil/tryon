@@ -3,7 +3,6 @@
  *
  * Calls the local rembg Python microservice to remove
  * the background from uploaded frame images.
- * TODO (Milestone 5): Wire into frame upload route.
  */
 
 const REMBG_URL = process.env.REMBG_URL || 'http://localhost:5000'

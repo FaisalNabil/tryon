@@ -48,6 +48,8 @@ model Frame {
 
   shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   events      AnalyticsEvent[]
+
+  @@index([shopId])
 }
 
 // ─── Subscription ────────────────────────────────────────────────────
@@ -101,6 +103,7 @@ model AnalyticsEvent {
 
   @@index([shopId, createdAt])
   @@index([shopId, eventType])
+  @@index([sessionId])
 }
 
 // ─── ML Model Versions ───────────────────────────────────────────────

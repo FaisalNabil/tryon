@@ -14,7 +14,9 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://api.tryonwidget.com/v1
  */
 export async function validateAndFetchConfig(apiKey) {
   try {
-    const res = await fetch(`${API_BASE}/widget/config?key=${encodeURIComponent(apiKey)}`)
+    const res = await fetch(`${API_BASE}/widget/config?key=${encodeURIComponent(apiKey)}`, {
+      signal: AbortSignal.timeout(10_000), // 10s timeout
+    })
 
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {

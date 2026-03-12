@@ -8,6 +8,7 @@
 import { Router } from 'express'
 import { randomUUID } from 'crypto'
 import multer from 'multer'
+import { z } from 'zod'
 import { prisma, redis } from '../server.js'
 import { requireAuth } from '../middleware/auth.js'
 import { removeBackground } from '../services/imageProcess.js'
@@ -16,10 +17,38 @@ import { uploadImage, deleteImage } from '../services/storage.js'
 const router = Router()
 router.use(requireAuth)
 
-// Use memory storage so req.file.buffer is available for the image pipeline
+// ─── Validation schemas ───────────────────────────────────────────────
+const VALID_STYLES = [
+  'rectangular', 'round', 'cat_eye', 'aviator', 'square', 'geometric', 'other',
+]
+
+const frameUploadSchema = z.object({
+  name:  z.string().min(1, 'Frame name is required').max(200).optional(),
+  style: z.enum(VALID_STYLES, { message: `Style must be one of: ${VALID_STYLES.join(', ')}` }).optional(),
+})
+
+const frameUpdateSchema = z.object({
+  name:     z.string().min(1).max(200).optional(),
+  style:    z.enum(VALID_STYLES, { message: `Style must be one of: ${VALID_STYLES.join(', ')}` }).optional(),
+  isActive: z.boolean().optional(),
+}).refine(data => Object.keys(data).length > 0, {
+  message: 'At least one field (name, style, isActive) is required',
+})
+
+// ─── Multer with file type filter ─────────────────────────────────────
+const ALLOWED_MIMES = ['image/png', 'image/jpeg', 'image/webp']
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIMES.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      const err = new Error('FILE_TYPE_NOT_ALLOWED')
+      cb(err, false)
+    }
+  },
 })
 
 // ─── Helper: invalidate widget config cache ──────────────────────────
@@ -46,7 +75,7 @@ router.post('/upload', upload.single('image'), async (req, res, next) => {
       return res.status(400).json({ error: 'Image file is required' })
     }
 
-    const { name, style } = req.body
+    const { name, style } = frameUploadSchema.parse(req.body)
 
     // Step 1: Remove background via rembg microservice
     // Gracefully falls back to original image if rembg is unavailable
@@ -81,15 +110,11 @@ router.post('/upload', upload.single('image'), async (req, res, next) => {
 // ─── PUT /:id — Update frame metadata ──────────────────────────────
 router.put('/:id', async (req, res, next) => {
   try {
-    const { name, style, isActive } = req.body
+    const data = frameUpdateSchema.parse(req.body)
 
     const frame = await prisma.frame.updateMany({
       where: { id: req.params.id, shopId: req.shopId },
-      data: {
-        ...(name     !== undefined && { name }),
-        ...(style    !== undefined && { style }),
-        ...(isActive !== undefined && { isActive }),
-      },
+      data,
     })
 
     if (frame.count === 0) {

@@ -9,18 +9,27 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
+import { z } from 'zod'
 import { prisma } from '../server.js'
 
 const router = Router()
 
+// ─── Validation schemas ───────────────────────────────────────────────
+const registerSchema = z.object({
+  email:    z.string().email('Invalid email format'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  shopName: z.string().min(2, 'Shop name must be at least 2 characters').max(100),
+})
+
+const loginSchema = z.object({
+  email:    z.string().email('Invalid email format'),
+  password: z.string().min(1, 'Password is required'),
+})
+
 // ─── POST /register ─────────────────────────────────────────────────
 router.post('/register', async (req, res, next) => {
   try {
-    const { email, password, shopName } = req.body
-
-    if (!email || !password || !shopName) {
-      return res.status(400).json({ error: 'email, password, and shopName are required' })
-    }
+    const { email, password, shopName } = registerSchema.parse(req.body)
 
     // Check if email already exists
     const existing = await prisma.shop.findUnique({ where: { email } })
@@ -57,11 +66,7 @@ router.post('/register', async (req, res, next) => {
 // ─── POST /login ────────────────────────────────────────────────────
 router.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'email and password are required' })
-    }
+    const { email, password } = loginSchema.parse(req.body)
 
     const shop = await prisma.shop.findUnique({ where: { email } })
     if (!shop) {

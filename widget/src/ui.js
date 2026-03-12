@@ -141,10 +141,20 @@ async function openModal() {
       onFaceShapeDetected: (shape) => showRecommendation(shape),
     })
   } catch (err) {
-    if (err.name === 'NotAllowedError') {
-      showPermissionError()
+    const errorMessages = {
+      NotAllowedError: 'Camera access denied. Please allow camera access in your browser settings.',
+      NotFoundError: 'No camera found. Please connect a camera and try again.',
+      NotSupportedError: 'Camera is not supported in this browser. Try using Chrome, Firefox, or Safari.',
+      NotReadableError: 'Camera is in use by another application. Close other apps using the camera and try again.',
+      OverconstrainedError: 'Camera does not support the required settings. Try a different camera.',
+    }
+
+    const message = errorMessages[err.name]
+    if (message) {
+      showCameraError(message)
     } else {
       console.warn('[TryOn] Camera error:', err)
+      showCameraError('Unable to start camera. Please try again.')
     }
   }
 }
@@ -268,6 +278,14 @@ function getBadgeClass(score) {
 function showPermissionError() {
   shadowRoot.getElementById('tryon-loading').setAttribute('hidden', '')
   shadowRoot.getElementById('tryon-no-permission').removeAttribute('hidden')
+}
+
+function showCameraError(message) {
+  const loadingEl = shadowRoot.getElementById('tryon-loading')
+  const permEl = shadowRoot.getElementById('tryon-no-permission')
+  loadingEl.setAttribute('hidden', '')
+  permEl.innerHTML = `<p>⚠️ ${message}</p>`
+  permEl.removeAttribute('hidden')
 }
 
 function getStyles(cfg) {

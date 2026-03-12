@@ -2,7 +2,6 @@
  * services/storage.js — Cloudflare R2 file storage
  *
  * Handles uploading and deleting frame images in R2.
- * TODO (Milestone 5): Wire into frame upload route.
  */
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'

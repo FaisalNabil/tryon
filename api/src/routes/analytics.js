@@ -6,35 +6,40 @@
  */
 
 import { Router } from 'express'
+import { z } from 'zod'
 import { prisma } from '../server.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireApiKey } from '../middleware/apiKey.js'
 
 const router = Router()
 
-const VALID_EVENT_TYPES = [
-  'widget_open', 'frame_tried', 'frame_adjusted',
-  'share_clicked', 'checkout_click', 'face_ratios',
-]
+// ─── Validation schema ───────────────────────────────────────────────
+const eventSchema = z.object({
+  eventType: z.enum([
+    'widget_open', 'frame_tried', 'frame_adjusted',
+    'share_clicked', 'checkout_click', 'face_ratios',
+  ]),
+  sessionId:       z.string().optional(),
+  frameId:         z.string().optional(),
+  pageUrl:         z.string().optional(),
+  metadata:        z.record(z.unknown()).optional(),
+  // face_ratios extras
+  faceShape:       z.string().optional(),
+  widthToLength:   z.number().optional(),
+  jawToCheekbone:  z.number().optional(),
+  foreheadToJaw:   z.number().optional(),
+})
+
+const ingestSchema = z.object({
+  events: z.array(eventSchema).min(1, 'At least one event is required').max(100, 'Maximum 100 events per batch'),
+})
 
 // ─── POST /analytics/ingest ─────────────────────────────────────────
 // Receives batched events from the widget (authenticated via API key).
 // Auto-creates AnalyticsSession if one doesn't exist for the sessionId.
 router.post('/ingest', requireApiKey, async (req, res, next) => {
   try {
-    const { events } = req.body
-
-    if (!Array.isArray(events) || events.length === 0) {
-      return res.status(400).json({ error: 'events array is required' })
-    }
-
-    // Limit batch size and filter invalid event types
-    const valid = events.slice(0, 100)
-      .filter(evt => VALID_EVENT_TYPES.includes(evt.eventType))
-
-    if (valid.length === 0) {
-      return res.json({ ok: true, count: 0 })
-    }
+    const { events: valid } = ingestSchema.parse(req.body)
 
     // Ensure AnalyticsSession exists for each unique sessionId
     const sessionIds = [...new Set(valid.map(e => e.sessionId).filter(Boolean))]
